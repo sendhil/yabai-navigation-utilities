@@ -2,6 +2,7 @@
 
 from typing import Any, Optional
 from dataclasses import dataclass
+import config
 import sys
 import logging
 import json
