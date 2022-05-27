@@ -52,30 +52,37 @@ def call_yabai(args) -> Any:
         return None
 
 
+def get_window_data() -> Any:
+    return call_yabai(["-m", "query", "--windows"])
+
+
+def get_spaces_data() -> Any:
+    return call_yabai(["-m", "query", "--spaces"])
+
+
 def main():
     options = get_options()
 
-    results = call_yabai(["-m", "query", "--windows"])
-
     window_id: Optional[int] = None
-    for result in results:
-        if result["app"] == options.app_name:
-            window_id = result["id"]
+    for window in get_window_data():
+        if window["app"] == options.app_name:
+            window_id = window["id"]
 
     if window_id is None:
-        raise "Obsidian not found"
+        raise f"{options.app_name} not found."
 
     space_index: Optional[int] = None
-    results = call_yabai(["-m", "query", "--spaces"])
-    for result in results:
-        if result["has-focus"]:
-            space_index = result["index"]
+    for space in get_spaces_data():
+        if space["has-focus"]:
+            space_index = space["index"]
 
     if space_index is None:
         raise "Could not find current space"
 
+    # Move window to space
     call_yabai(["-m", "window", str(window_id), "--space", str(space_index)])
 
+    # Focus on window
     if not options.skip_focus:
         call_yabai(["-m", "window", str(window_id), "--focus"])
 
