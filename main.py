@@ -8,13 +8,14 @@ import json
 import subprocess
 import argparse
 
+
 @dataclass
 class Options(object):
-    app_name:str
-    skip_focus:bool
+    app_name: str
+    skip_focus: bool
 
 
-def get_app_name_from_args() -> Options:
+def get_options() -> Options:
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--app", help="App Name")
     parser.add_argument("-s",
@@ -50,22 +51,21 @@ def call_yabai(args) -> Any:
         logging.debug("No output from Yabai")
         return None
 
+
 def main():
-    options = get_app_name_from_args()
+    options = get_options()
 
     results = call_yabai(["-m", "query", "--windows"])
 
-    window_id:Optional[int] = None
+    window_id: Optional[int] = None
     for result in results:
         if result["app"] == options.app_name:
             window_id = result["id"]
 
-
     if window_id is None:
         raise "Obsidian not found"
 
-
-    space_index:Optional[int] = None
+    space_index: Optional[int] = None
     results = call_yabai(["-m", "query", "--spaces"])
     for result in results:
         if result["has-focus"]:
