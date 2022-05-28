@@ -102,6 +102,7 @@ def find_app_window(app_name: str) -> WindowDetails:
     for window in get_window_data():
         if window["app"] == app_name:
             window_details = WindowDetails(window_id=window["id"],
+                                           app=app_name,
                                            space_id=window["space"])
 
     if window_details is None:
@@ -128,7 +129,7 @@ def get_current_window() -> WindowDetails:
     for window in get_window_data():
         if window["has-focus"]:
             window_details = WindowDetails(window_id=window["id"],
-                                           name=window["app"],
+                                           app=window["app"],
                                            space_id=window["space"])
 
     if not window_details:
@@ -158,10 +159,19 @@ def retrieve_saved_window_state():
         return window_state
 
 
+def hide_window(window_details: WindowDetails):
+    print(f"hide window : {window_details}")
+
+
+def show_window(window_details: WindowDetails):
+    print(f"show window : {window_details}")
+
+
 def main():
     options = get_options()
 
     if options.store_window:
+        print("STORING WINDOW")
         current_window: Optional[WindowDetails] = None
         for window in get_window_data():
             if window["has-focus"]:
@@ -191,9 +201,33 @@ def main():
 
         exit(0)
     else:
-        print("TOGGLE WINDOW")
+        print("TOGGLING WINDOW")
         decoded_config = config.get_config()
         window_state = WindowState(**decoded_config)
+
+        # Check index.
+        current_window_index = window_state.current_window_index
+
+        if current_window_index >= len(
+                window_state.windows) or current_window_index < -1:
+            current_window_index = -1
+
+        print(f"Current window index before starting : {current_window_index}")
+
+        # 1. Hide Current Window
+        if current_window_index > -1:
+            hide_window(window_state.windows[current_window_index])
+
+        # 2. Show Next Window
+        if current_window_index < len(window_state.windows) - 1:
+            show_window(window_state.windows[current_window_index + 1])
+            current_window_index += 1
+        else:
+            print("hiding windows and starting over")
+            current_window_index = -1
+
+        window_state.current_window_index = current_window_index
+        save_window_state(window_state)
 
         exit(0)
 
