@@ -1,7 +1,7 @@
 #!/user/bin/env python3
 
 from base64 import decode
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
 import config
 import sys
@@ -55,6 +55,9 @@ def get_options() -> Options:
         sys.exit(1)
 
     args = vars(parser.parse_args())
+
+    if args["verbose"]:
+        logging.basicConfig(level=logging.DEBUG)
 
     return Options(app_name=args['app'],
                    store_window=args['store'],
@@ -111,11 +114,11 @@ def find_app_window(app_name: str) -> WindowDetails:
     return window_details
 
 
-def move_window_to_current_space(window_details: WindowDetails):
+def move_window_to_space(window_details: WindowDetails, space_id: int):
     call_yabai([
         "-m", "window",
         str(window_details.window_id), "--space",
-        str(find_current_space())
+        str(space_id)
     ])
 
 
@@ -156,22 +159,46 @@ def retrieve_saved_window_state():
         window_state.windows = [
             WindowDetails(**item) for item in window_state.windows
         ]
+
+        # Check if window is stale, if so remove, and reset index
+        current_valid_windows = get_window_data()
+
+        # Flatten current windows to speed up lookup
+        valid_window_map: Dict[int, str] = {}
+        for window in current_valid_windows:
+            valid_window_map[window["id"]] = window["app"]
+
+        # Filter out invalid windows
+        windows_to_preserve: List[WindowDetails] = []
+        for window in window_state.windows:
+            if window.window_id in valid_window_map:
+                windows_to_preserve.append(window)
+            else:
+                logging.debug(f"Found invalid window {window} - removing.")
+                window_state.current_window_index = -1
+        window_state.windows = windows_to_preserve
+
         return window_state
 
 
 def hide_window(window_details: WindowDetails):
-    print(f"hide window : {window_details}")
+    logging.debug(f"Hiding Window : {window_details}")
+    move_window_to_space(window_details=window_details,
+                         space_id=window_details.space_id)
 
 
 def show_window(window_details: WindowDetails):
-    print(f"show window : {window_details}")
+    logging.debug(f"Showing Window : {window_details}")
+    move_window_to_space(window_details=window_details,
+                         space_id=find_current_space())
+    focus_on_window(window_details.window_id)
 
 
 def main():
     options = get_options()
 
     if options.store_window:
-        print("STORING WINDOW")
+        logging.debug("Attempting to store window")
         current_window: Optional[WindowDetails] = None
         for window in get_window_data():
             if window["has-focus"]:
@@ -181,6 +208,8 @@ def main():
 
         if not current_window:
             raise Exception("Could not find current window")
+
+        logging.debug(f"Storing window : {current_window}")
 
         window_state = retrieve_saved_window_state()
         new_windows: List[WindowDetails] = []
@@ -195,24 +224,23 @@ def main():
         # Save the window since it's not currently in our list
         if not found_window:
             new_windows.append(current_window)
+            logging.debug(f"Added {current_window} from stored Windows")
+        else:
+            logging.debug(f"Removed {current_window} from stored Windows")
 
         window_state.windows = new_windows
         save_window_state(window_state)
-
-        exit(0)
     else:
-        print("TOGGLING WINDOW")
-        decoded_config = config.get_config()
-        window_state = WindowState(**decoded_config)
+        logging.debug("Toggling window")
+        window_state = retrieve_saved_window_state()
 
         # Check index.
         current_window_index = window_state.current_window_index
 
         if current_window_index >= len(
                 window_state.windows) or current_window_index < -1:
+            logging.debug("Resetting current_window_index")
             current_window_index = -1
-
-        print(f"Current window index before starting : {current_window_index}")
 
         # 1. Hide Current Window
         if current_window_index > -1:
@@ -223,17 +251,12 @@ def main():
             show_window(window_state.windows[current_window_index + 1])
             current_window_index += 1
         else:
-            print("hiding windows and starting over")
             current_window_index = -1
+            logging.debug(
+                "Hit the end of the list, starting over at the beginning.")
 
         window_state.current_window_index = current_window_index
         save_window_state(window_state)
-
-        exit(0)
-
-    window_details = find_app_window(options.app_name)
-    move_window_to_current_space(window_details)
-    focus_on_window(window_details.window_id)
 
 
 if __name__ == "__main__":
