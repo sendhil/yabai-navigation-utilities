@@ -1,6 +1,5 @@
 #!/user/bin/env python3
 
-from base64 import decode
 from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
 import config
@@ -16,6 +15,7 @@ class Options(object):
     app_name: str
     store_window: bool
     toggle_window: bool
+    space_id: Optional[int]
 
 
 # TODO: Remove pickling and do this by hand
@@ -44,6 +44,7 @@ def get_options() -> Options:
                        "--toggle",
                        action="store_true",
                        help="toggle current window visibility")
+    group.add_argument("-f", "--focus", type=int, help="focus on space")
     parser.add_argument("-a", "--app", help="App Name")
     parser.add_argument("-v",
                         "--verbose",
@@ -59,9 +60,14 @@ def get_options() -> Options:
     if args["verbose"]:
         logging.basicConfig(level=logging.DEBUG)
 
+    space_id: Optional[int] = None
+    if args["focus"]:
+        space_id = args["focus"]
+
     return Options(app_name=args['app'],
                    store_window=args['store'],
-                   toggle_window=args['toggle'])
+                   toggle_window=args['toggle'],
+                   space_id=space_id)
 
 
 def call_yabai(args) -> Any:
@@ -194,6 +200,21 @@ def show_window(window_details: WindowDetails):
     focus_on_window(window_details.window_id)
 
 
+# Space Related
+def focus_on_space(space_id: int):
+    # TODO - Filter out hammerspoon
+    window_data = get_window_data()
+    window_data = [item for item in window_data if item["space"] == space_id]
+    logging.debug(f"window data focusing for : {window_data}")
+    if window_data:
+        logging.debug(f"Focusing on space {space_id}")
+        focus_on_window(window_data[0]["id"])
+        exit(0)
+    else:
+        logging.debug(f"No windows found on space {space_id}.")
+        exit(1)
+
+
 def main():
     options = get_options()
 
@@ -230,7 +251,7 @@ def main():
 
         window_state.windows = new_windows
         save_window_state(window_state)
-    else:
+    elif options.toggle_window:
         logging.debug("Toggling window")
         window_state = retrieve_saved_window_state()
 
@@ -257,6 +278,10 @@ def main():
 
         window_state.current_window_index = current_window_index
         save_window_state(window_state)
+    elif options.space_id:
+        focus_on_space(options.space_id)
+    else:
+        raise Exception("Invalid option specified")
 
 
 if __name__ == "__main__":
