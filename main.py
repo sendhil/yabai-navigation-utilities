@@ -202,9 +202,13 @@ def show_window(window_details: WindowDetails):
 
 # Space Related
 def focus_on_space(space_id: int):
-    # TODO - Filter out hammerspoon
     window_data = get_window_data()
-    window_data = [item for item in window_data if item["space"] == space_id]
+    # I think filtering on AXWindow will make sure we don't focus on
+    # any windows like a Hammerspoon dialogue. May need to revisit this.
+    window_data = [
+        item for item in window_data
+        if item["space"] == space_id and item["subrole"] == "AXStandardWindow"
+    ]
     logging.debug(f"window data focusing for : {window_data}")
     if window_data:
         logging.debug(f"Focusing on space {space_id}")
