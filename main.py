@@ -38,24 +38,11 @@ def call_yabai(args) -> Any:
         return None
 
 
+# Window Related
+
+
 def get_window_data() -> Any:
     return call_yabai(["-m", "query", "--windows"])
-
-
-def get_spaces_data() -> Any:
-    return call_yabai(["-m", "query", "--spaces"])
-
-
-def find_current_space() -> int:
-    space_index: Optional[int] = None
-    for space in get_spaces_data():
-        if space["has-focus"]:
-            space_index = space["index"]
-
-    if space_index is None:
-        raise Exception("Could not find current space")
-
-    return space_index
 
 
 def find_app_window(app_name: str) -> WindowDetails:
@@ -99,6 +86,71 @@ def get_current_window() -> WindowDetails:
     return window_details
 
 
+def hide_window(window_details: WindowDetails):
+    logging.debug(f"Hiding Window : {window_details}")
+    move_window_to_space(window_details=window_details,
+                         space_id=window_details.space_id)
+
+
+def show_window(window_details: WindowDetails):
+    logging.debug(f"Showing Window : {window_details}")
+    move_window_to_space(window_details=window_details,
+                         space_id=find_current_space())
+    focus_on_window(window_details.window_id)
+
+
+# Space Related
+
+
+def get_spaces_data() -> Any:
+    return call_yabai(["-m", "query", "--spaces"])
+
+
+def find_current_space() -> int:
+    space_index: Optional[int] = None
+    for space in get_spaces_data():
+        if space["has-focus"]:
+            space_index = space["index"]
+
+    if space_index is None:
+        raise Exception("Could not find current space")
+
+    return space_index
+
+
+# Space Related
+
+
+def focus_on_space(space_id: int):
+    window_data = get_window_data()
+    # I think filtering on AXWindow will make sure we don't focus on
+    # any windows like a Hammerspoon dialogue. May need to revisit this.
+    window_data = [
+        item for item in window_data
+        if item["space"] == space_id and item["subrole"] == "AXStandardWindow"
+    ]
+    logging.debug(f"window data focusing for : {window_data}")
+    if window_data:
+        logging.debug(f"Focusing on space {space_id}")
+        focus_on_window(window_data[0]["id"])
+        exit(0)
+    else:
+        logging.debug(f"No windows found on space {space_id}.")
+        exit(1)
+
+
+def focus_on_most_recent_space():
+    results = call_yabai(["-m", "query", "--windows", "--window", "recent"])
+    if results:
+        logging.debug("Focusing on most recent space")
+        focus_on_window(results["id"])
+    else:
+        logging.debug("Unable to find most recent space")
+
+
+# State Related
+
+
 def save_window_state(window_state):
     json_data = json.dumps(window_state,
                            default=lambda o: o.__dict__,
@@ -139,45 +191,7 @@ def retrieve_saved_window_state():
         return window_state
 
 
-def hide_window(window_details: WindowDetails):
-    logging.debug(f"Hiding Window : {window_details}")
-    move_window_to_space(window_details=window_details,
-                         space_id=window_details.space_id)
-
-
-def show_window(window_details: WindowDetails):
-    logging.debug(f"Showing Window : {window_details}")
-    move_window_to_space(window_details=window_details,
-                         space_id=find_current_space())
-    focus_on_window(window_details.window_id)
-
-
-# Space Related
-def focus_on_space(space_id: int):
-    window_data = get_window_data()
-    # I think filtering on AXWindow will make sure we don't focus on
-    # any windows like a Hammerspoon dialogue. May need to revisit this.
-    window_data = [
-        item for item in window_data
-        if item["space"] == space_id and item["subrole"] == "AXStandardWindow"
-    ]
-    logging.debug(f"window data focusing for : {window_data}")
-    if window_data:
-        logging.debug(f"Focusing on space {space_id}")
-        focus_on_window(window_data[0]["id"])
-        exit(0)
-    else:
-        logging.debug(f"No windows found on space {space_id}.")
-        exit(1)
-
-
-def focus_on_most_recent_space():
-    results = call_yabai(["-m", "query", "--windows", "--window", "recent"])
-    if results:
-        logging.debug("Focusing on most recent space")
-        focus_on_window(results["id"])
-    else:
-        logging.debug("Unable to find most recent space")
+# CLI Commands
 
 
 @click.group()
