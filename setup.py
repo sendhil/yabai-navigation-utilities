@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name='yabai_navigation_utilities',
     packages=find_packages(),
-    version='0.0.2',
+    version='0.0.3',
     description='Collection of scripts to make navigating Yabai easier.',
     author='Sendhil Panchadsaram',
     license='MIT',
@@ -16,7 +16,7 @@ setup(
     setup_requires=[],
     tests_require=[],
     test_suite='',
-    py_modules=['main', 'yabai_navigation_utilities'],
+    py_modules=['yabai_navigation_utilities'],
     project_urls={
         'GitHub': 'https://github.com/sendhil/yabai-navigation-utilities',
     },
