@@ -118,9 +118,6 @@ def find_current_space() -> int:
     return space_index
 
 
-# Space Related
-
-
 def focus_on_space(space_id: int):
     window_data = get_window_data()
     # I think filtering on AXWindow will make sure we don't focus on
@@ -194,14 +191,14 @@ def retrieve_saved_window_state():
 # CLI Commands
 
 
-@click.group()
+@click.group(help="A set of utilities to make navigating Yabai easier.")
 @click.option("--verbose", is_flag=True)
 def cli(verbose):
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
 
-@cli.command()
+@cli.command(help="Saves the current window to the list of 'scratch' windows.")
 def store():
     logging.debug("Attempting to store window")
     current_window: Optional[WindowDetails] = None
@@ -237,7 +234,7 @@ def store():
     save_window_state(window_state)
 
 
-@cli.command()
+@cli.command(help="Toggles through the current set of 'scratch' windows.")
 def toggle():
     logging.debug("Toggling window")
     window_state = retrieve_saved_window_state()
@@ -267,13 +264,14 @@ def toggle():
     save_window_state(window_state)
 
 
-@cli.command()
+@cli.command(
+    help="Focuses on a space by focusing on the first window in that space.")
 @click.argument("space", type=int)
 def focus(space):
     focus_on_space(space)
 
 
-@cli.command(help="Focus on the most recent space")
+@cli.command(help="Focus on the most recent space.")
 def recent_space():
     focus_on_most_recent_space()
 
