@@ -15,6 +15,7 @@ class Options(object):
     app_name: str
     store_window: bool
     toggle_window: bool
+    focus_recent: bool
     space_id: Optional[int]
 
 
@@ -45,6 +46,10 @@ def get_options() -> Options:
                        action="store_true",
                        help="toggle current window visibility")
     group.add_argument("-f", "--focus", type=int, help="focus on space")
+    group.add_argument("-r",
+                       "--recent",
+                       action="store_true",
+                       help="focus on recent space")
     parser.add_argument("-a", "--app", help="App Name")
     parser.add_argument("-v",
                         "--verbose",
@@ -67,6 +72,7 @@ def get_options() -> Options:
     return Options(app_name=args['app'],
                    store_window=args['store'],
                    toggle_window=args['toggle'],
+                   focus_recent=args["recent"],
                    space_id=space_id)
 
 
@@ -219,6 +225,15 @@ def focus_on_space(space_id: int):
         exit(1)
 
 
+def focus_on_most_recent_space():
+    results = call_yabai(["-m", "query", "--windows", "--window", "recent"])
+    if results:
+        logging.debug("Focusing on most recent space")
+        focus_on_window(results["id"])
+    else:
+        logging.debug("Unable to find most recent space")
+
+
 def main():
     options = get_options()
 
@@ -284,6 +299,8 @@ def main():
         save_window_state(window_state)
     elif options.space_id:
         focus_on_space(options.space_id)
+    elif options.focus_recent:
+        focus_on_most_recent_space()
     else:
         raise Exception("Invalid option specified")
 
