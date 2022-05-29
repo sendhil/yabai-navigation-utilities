@@ -276,5 +276,9 @@ def recent_space():
     focus_on_most_recent_space()
 
 
-if __name__ == "__main__":
+def main():
     cli()
+
+
+if __name__ == "__main__":
+    main()
