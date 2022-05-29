@@ -3,23 +3,12 @@
 from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
 import config
-import sys
 import logging
 import json
 import subprocess
-import argparse
+import click
 
 
-@dataclass
-class Options(object):
-    app_name: str
-    store_window: bool
-    toggle_window: bool
-    focus_recent: bool
-    space_id: Optional[int]
-
-
-# TODO: Remove pickling and do this by hand
 @dataclass
 class WindowDetails(object):
     window_id: int
@@ -31,49 +20,6 @@ class WindowDetails(object):
 class WindowState(object):
     windows: List[WindowDetails]
     current_window_index: int
-
-
-def get_options() -> Options:
-    parser = argparse.ArgumentParser()
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-s",
-                       "--store",
-                       action="store_true",
-                       help="toggle store current window")
-    group.add_argument("-t",
-                       "--toggle",
-                       action="store_true",
-                       help="toggle current window visibility")
-    group.add_argument("-f", "--focus", type=int, help="focus on space")
-    group.add_argument("-r",
-                       "--recent",
-                       action="store_true",
-                       help="focus on recent space")
-    parser.add_argument("-a", "--app", help="App Name")
-    parser.add_argument("-v",
-                        "--verbose",
-                        action="store_true",
-                        help="Verbose mode to aid in debugging")
-
-    if len(sys.argv) == 1:
-        parser.print_help(sys.stderr)
-        sys.exit(1)
-
-    args = vars(parser.parse_args())
-
-    if args["verbose"]:
-        logging.basicConfig(level=logging.DEBUG)
-
-    space_id: Optional[int] = None
-    if args["focus"]:
-        space_id = args["focus"]
-
-    return Options(app_name=args['app'],
-                   store_window=args['store'],
-                   toggle_window=args['toggle'],
-                   focus_recent=args["recent"],
-                   space_id=space_id)
 
 
 def call_yabai(args) -> Any:
@@ -234,76 +180,89 @@ def focus_on_most_recent_space():
         logging.debug("Unable to find most recent space")
 
 
-def main():
-    options = get_options()
+@click.group()
+@click.option("--verbose", is_flag=True)
+def cli(verbose):
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
 
-    if options.store_window:
-        logging.debug("Attempting to store window")
-        current_window: Optional[WindowDetails] = None
-        for window in get_window_data():
-            if window["has-focus"]:
-                current_window = WindowDetails(window_id=window["id"],
-                                               app=window["app"],
-                                               space_id=window["space"])
 
-        if not current_window:
-            raise Exception("Could not find current window")
+@cli.command()
+def store():
+    logging.debug("Attempting to store window")
+    current_window: Optional[WindowDetails] = None
+    for window in get_window_data():
+        if window["has-focus"]:
+            current_window = WindowDetails(window_id=window["id"],
+                                           app=window["app"],
+                                           space_id=window["space"])
 
-        logging.debug(f"Storing window : {current_window}")
+    if not current_window:
+        raise Exception("Could not find current window")
 
-        window_state = retrieve_saved_window_state()
-        new_windows: List[WindowDetails] = []
-        found_window = False
-        # Filter out the current window from the list
-        for window in window_state.windows:
-            if window.window_id == current_window.window_id and window.app == current_window.app:
-                found_window = True
-            else:
-                new_windows.append(window)
+    logging.debug(f"Storing window : {current_window}")
 
-        # Save the window since it's not currently in our list
-        if not found_window:
-            new_windows.append(current_window)
-            logging.debug(f"Added {current_window} from stored Windows")
+    window_state = retrieve_saved_window_state()
+    new_windows: List[WindowDetails] = []
+    found_window = False
+    # Filter out the current window from the list
+    for window in window_state.windows:
+        if window.window_id == current_window.window_id and window.app == current_window.app:
+            found_window = True
         else:
-            logging.debug(f"Removed {current_window} from stored Windows")
+            new_windows.append(window)
 
-        window_state.windows = new_windows
-        save_window_state(window_state)
-    elif options.toggle_window:
-        logging.debug("Toggling window")
-        window_state = retrieve_saved_window_state()
-
-        # Check index.
-        current_window_index = window_state.current_window_index
-
-        if current_window_index >= len(
-                window_state.windows) or current_window_index < -1:
-            logging.debug("Resetting current_window_index")
-            current_window_index = -1
-
-        # 1. Hide Current Window
-        if current_window_index > -1:
-            hide_window(window_state.windows[current_window_index])
-
-        # 2. Show Next Window
-        if current_window_index < len(window_state.windows) - 1:
-            show_window(window_state.windows[current_window_index + 1])
-            current_window_index += 1
-        else:
-            current_window_index = -1
-            logging.debug(
-                "Hit the end of the list, starting over at the beginning.")
-
-        window_state.current_window_index = current_window_index
-        save_window_state(window_state)
-    elif options.space_id:
-        focus_on_space(options.space_id)
-    elif options.focus_recent:
-        focus_on_most_recent_space()
+    # Save the window since it's not currently in our list
+    if not found_window:
+        new_windows.append(current_window)
+        logging.debug(f"Added {current_window} from stored Windows")
     else:
-        raise Exception("Invalid option specified")
+        logging.debug(f"Removed {current_window} from stored Windows")
+
+    window_state.windows = new_windows
+    save_window_state(window_state)
+
+
+@cli.command()
+def toggle():
+    logging.debug("Toggling window")
+    window_state = retrieve_saved_window_state()
+
+    # Check index.
+    current_window_index = window_state.current_window_index
+
+    if current_window_index >= len(
+            window_state.windows) or current_window_index < -1:
+        logging.debug("Resetting current_window_index")
+        current_window_index = -1
+
+    # 1. Hide Current Window
+    if current_window_index > -1:
+        hide_window(window_state.windows[current_window_index])
+
+    # 2. Show Next Window
+    if current_window_index < len(window_state.windows) - 1:
+        show_window(window_state.windows[current_window_index + 1])
+        current_window_index += 1
+    else:
+        current_window_index = -1
+        logging.debug(
+            "Hit the end of the list, starting over at the beginning.")
+
+    window_state.current_window_index = current_window_index
+    save_window_state(window_state)
+
+
+@cli.command()
+@click.argument("space", type=int)
+def focus(space):
+    focus_on_space(space)
+
+
+@cli.command(help="Focus on the most recent space")
+def recent_space():
+    focus_on_most_recent_space()
 
 
 if __name__ == "__main__":
-    main()
+    cli()
