@@ -2,7 +2,7 @@
 
 from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
-from . import config
+from yabai_navigation_utilities import config
 import logging
 import json
 import subprocess
@@ -276,5 +276,9 @@ def recent_space():
     focus_on_most_recent_space()
 
 
-if __name__ == "__main__":
+def main():
     cli()
+
+
+if __name__ == "__main__":
+    main()
