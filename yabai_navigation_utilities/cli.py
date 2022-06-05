@@ -129,7 +129,10 @@ def focus_on_space(space_id: int):
     logging.debug(f"window data focusing for : {window_data}")
     if window_data:
         logging.debug(f"Focusing on space {space_id}")
-        focus_on_window(window_data[0]["id"])
+        if not window_data[0]["has-focus"]:
+            focus_on_window(window_data[0]["id"])
+        else:
+            logging.debug("Skipping focusing on window because it has focus")
         exit(0)
     else:
         logging.debug(f"No windows found on space {space_id}.")
