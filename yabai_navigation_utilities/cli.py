@@ -236,6 +236,12 @@ def store():
     window_state.windows = new_windows
     save_window_state(window_state)
 
+    print(
+        json.dumps({
+            "result":
+            "added_window" if not found_window else "removed_window"
+        }))
+
 
 @cli.command(help="Toggles through the current set of 'scratch' windows.")
 def toggle():

@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name='yabai_navigation_utilities',
     packages=find_packages(),
-    version='0.0.5',
+    version='0.0.6',
     description='Collection of scripts to make navigating Yabai easier.',
     author='Sendhil Panchadsaram',
     license='MIT',
