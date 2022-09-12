@@ -9,11 +9,22 @@ import subprocess
 import click
 
 
+class BasicJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        return obj.__dict__
+
+
 @dataclass
 class WindowDetails(object):
     window_id: int
     app: Optional[str]
     space_id: int
+
+    def __str__(self):
+        return json.dumps(dict(self), ensure_ascii=False)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 @dataclass
@@ -241,6 +252,12 @@ def store():
             "result":
             "added_window" if not found_window else "removed_window"
         }))
+
+
+@cli.command(help="Lists currently saved 'scratch' windows.")
+def list_scratch_windows():
+    window_state = retrieve_saved_window_state()
+    print(json.dumps(window_state.windows, cls=BasicJsonEncoder))
 
 
 @cli.command(help="Toggles through the current set of 'scratch' windows.")
