@@ -1,4 +1,4 @@
-# 0.0.7
+# 0.0.8
 
 - Added a `list-scratch-windows` command to output the currently saved windows.
 
