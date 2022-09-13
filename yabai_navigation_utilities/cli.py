@@ -20,12 +20,6 @@ class WindowDetails(object):
     app: Optional[str]
     space_id: int
 
-    def __str__(self):
-        return json.dumps(dict(self), ensure_ascii=False)
-
-    def __repr__(self):
-        return self.__str__()
-
 
 @dataclass
 class WindowState(object):

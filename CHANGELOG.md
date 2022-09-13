@@ -1,3 +1,6 @@
+# 0.0.9
+
+- Fixed a bug with `toggle` introduced by 0.0.8.
 # 0.0.8
 
 - Added a `list-scratch-windows` command to output the currently saved windows.
