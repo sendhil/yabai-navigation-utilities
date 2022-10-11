@@ -1,3 +1,7 @@
+# 0.0.10
+
+- Fixed a bug where `recent-space` didn't work properly if the most recent space had an unmanaged window.
+
 # 0.0.9
 
 - Fixed a bug with `toggle` introduced by 0.0.8.
