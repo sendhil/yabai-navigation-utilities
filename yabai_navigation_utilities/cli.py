@@ -10,6 +10,7 @@ import click
 
 
 class BasicJsonEncoder(json.JSONEncoder):
+
     def default(self, obj):
         return obj.__dict__
 
@@ -150,7 +151,18 @@ def focus_on_most_recent_space():
         logging.debug("Focusing on most recent space")
         focus_on_window(results["id"])
     else:
-        logging.debug("Unable to find most recent space")
+        # This sometimes happens when the most recent space doesn't have a
+        # window that Yabai manages. This tries to find the most recent space
+        # and see if there's a window we can focus on.
+
+        logging.debug("Unable to find a most recent window so attempting "
+                      "to focus on the most recent space")
+
+        results = call_yabai(["-m", "query", "--spaces", "--space", "recent"])
+        if results:
+            focus_on_space(int(results["index"]))
+        else:
+            logging.debug("Unable to find most recent space")
 
 
 # State Related
