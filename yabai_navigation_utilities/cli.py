@@ -308,6 +308,15 @@ def recent_space():
     focus_on_most_recent_space()
 
 
+@cli.command(help="Swap the windows between two displays")
+@click.argument("displays",
+                type=int,
+                nargs=2)
+def swap_displays(displays):
+    print("Hello swap displays")
+    print(displays)
+
+
 def main():
     cli()
 
