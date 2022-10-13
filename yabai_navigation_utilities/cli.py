@@ -3,6 +3,7 @@
 from typing import Any, Optional, List, Dict
 from dataclasses import dataclass
 from yabai_navigation_utilities import config
+import pprint
 import logging
 import json
 import subprocess
@@ -16,10 +17,29 @@ class BasicJsonEncoder(json.JSONEncoder):
 
 
 @dataclass
+class SpaceAndWindowData(object):
+    space_id: int
+    window_data: List[Any]
+
+
+@dataclass
+class DisplayWindowData(object):
+    space_id: int
+    display_id: int
+    window_data: List[Any]
+
+
+@dataclass
 class WindowDetails(object):
     window_id: int
     app: Optional[str]
     space_id: int
+
+    @staticmethod
+    def from_yabai_data(yabai_data: Dict):
+        return WindowDetails(window_id=yabai_data["id"],
+                             app=yabai_data["title"],
+                             space_id=yabai_data["space"])
 
 
 @dataclass
@@ -47,8 +67,33 @@ def call_yabai(args) -> Any:
 # Window Related
 
 
+# TODO - Rename to get_all_windows()
 def get_window_data() -> Any:
     return call_yabai(["-m", "query", "--windows"])
+
+
+def get_windows_for_space(space: int) -> Any:
+    return call_yabai(["-m", "query", "--windows", "--space", str(space)])
+
+
+def get_windows_for_display(display: int) -> SpaceAndWindowData:
+    # To get the visible space for a display we have to:
+    # 1. Get the spaces for the display
+    # 2. Find the currently visible space `is-visible: true`
+    # 3. Pull the windows for that space
+    # 4. Return windows and space
+
+    display_data_for_space = call_yabai(
+        ["-m", "query", "--spaces", "--display",
+         str(display)])
+
+    for item in display_data_for_space:
+        if item["is-visible"]:
+            space_id = item["index"]
+            return SpaceAndWindowData(
+                space_id=space_id, window_data=get_windows_for_space(space_id))
+
+    raise Exception(f"Could not find a visible space for display {display}")
 
 
 def find_app_window(app_name: str) -> WindowDetails:
@@ -79,7 +124,6 @@ def focus_on_window(window_id: int):
 
 def get_current_window() -> WindowDetails:
     window_details: Optional[WindowDetails] = None
-
     for window in get_window_data():
         if window["has-focus"]:
             window_details = WindowDetails(window_id=window["id"],
@@ -309,12 +353,24 @@ def recent_space():
 
 
 @cli.command(help="Swap the windows between two displays")
-@click.argument("displays",
-                type=int,
-                nargs=2)
+@click.argument("displays", type=int, nargs=2)
 def swap_displays(displays):
-    print("Hello swap displays")
-    print(displays)
+    display_data: List[DisplayWindowData] = []
+
+    for display in displays:
+        space_and_window_data = get_windows_for_display(display)
+        display_data.append(
+            DisplayWindowData(space_id=space_and_window_data.space_id,
+                              display_id=display,
+                              window_data=space_and_window_data.window_data))
+
+    for index, item in enumerate(display_data):
+        other_space = display_data[(index + 1) % len(display_data)].space_id
+        for window in item.window_data:
+            logging.debug(
+                f"Moving Window({window['title']}) to space : {other_space}")
+            move_window_to_space(WindowDetails.from_yabai_data(window),
+                                 space_id=other_space)
 
 
 def main():
