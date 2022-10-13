@@ -1,9 +1,8 @@
 #!/user/bin/env python3
 
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List, Dict, Tuple
 from dataclasses import dataclass
 from yabai_navigation_utilities import config
-import pprint
 import logging
 import json
 import subprocess
@@ -17,13 +16,7 @@ class BasicJsonEncoder(json.JSONEncoder):
 
 
 @dataclass
-class SpaceAndWindowData(object):
-    space_id: int
-    window_data: List[Any]
-
-
-@dataclass
-class DisplayWindowData(object):
+class DisplayDetails(object):
     space_id: int
     display_id: int
     window_data: List[Any]
@@ -68,16 +61,16 @@ def call_yabai(args) -> Any:
 
 
 # TODO - Rename to get_all_windows()
-def get_window_data() -> Any:
+def get_all_windows() -> Any:
     return call_yabai(["-m", "query", "--windows"])
 
 
-def get_windows_for_space(space: int) -> Any:
-    return call_yabai(["-m", "query", "--windows", "--space", str(space)])
+def get_windows_for_space(space_id: int) -> Any:
+    return call_yabai(["-m", "query", "--windows", "--space", str(space_id)])
 
 
-def get_windows_for_display(display: int) -> SpaceAndWindowData:
-    # To get the visible space for a display we have to:
+# Returns (window_data, space_id)
+def get_windows_for_display(display_id: int) -> Tuple[List[Dict], int]:
     # 1. Get the spaces for the display
     # 2. Find the currently visible space `is-visible: true`
     # 3. Pull the windows for that space
@@ -85,20 +78,19 @@ def get_windows_for_display(display: int) -> SpaceAndWindowData:
 
     display_data_for_space = call_yabai(
         ["-m", "query", "--spaces", "--display",
-         str(display)])
+         str(display_id)])
 
     for item in display_data_for_space:
         if item["is-visible"]:
             space_id = item["index"]
-            return SpaceAndWindowData(
-                space_id=space_id, window_data=get_windows_for_space(space_id))
+            return (get_windows_for_space(space_id), space_id)
 
-    raise Exception(f"Could not find a visible space for display {display}")
+    raise Exception(f"Could not find a visible space for display {display_id}")
 
 
 def find_app_window(app_name: str) -> WindowDetails:
     window_details: Optional[WindowDetails] = None
-    for window in get_window_data():
+    for window in get_all_windows():
         if window["app"] == app_name:
             window_details = WindowDetails(window_id=window["id"],
                                            app=app_name,
@@ -124,7 +116,7 @@ def focus_on_window(window_id: int):
 
 def get_current_window() -> WindowDetails:
     window_details: Optional[WindowDetails] = None
-    for window in get_window_data():
+    for window in get_all_windows():
         if window["has-focus"]:
             window_details = WindowDetails(window_id=window["id"],
                                            app=window["app"],
@@ -169,7 +161,7 @@ def find_current_space() -> int:
 
 
 def focus_on_space(space_id: int):
-    window_data = get_window_data()
+    window_data = get_all_windows()
     # I think filtering on AXWindow will make sure we don't focus on
     # any windows like a Hammerspoon dialogue. May need to revisit this.
     window_data = [
@@ -232,7 +224,7 @@ def retrieve_saved_window_state():
         ]
 
         # Check if window is stale, if so remove, and reset index
-        current_valid_windows = get_window_data()
+        current_valid_windows = get_all_windows()
 
         # Flatten current windows to speed up lookup
         valid_window_map: Dict[int, str] = {}
@@ -266,7 +258,7 @@ def cli(verbose):
 def store():
     logging.debug("Attempting to store window")
     current_window: Optional[WindowDetails] = None
-    for window in get_window_data():
+    for window in get_all_windows():
         if window["has-focus"]:
             current_window = WindowDetails(window_id=window["id"],
                                            app=window["app"],
@@ -355,31 +347,33 @@ def recent_space():
 @cli.command(help="Swap the windows between two displays")
 @click.argument("displays", type=int, nargs=2)
 def swap_displays(displays):
-    display_data: List[DisplayWindowData] = []
-    window_id_with_focus: Optional[int] = None
+    display_details: List[DisplayDetails] = []
+    currently_focused_window: Optional[int] = None
 
     for display in displays:
-        space_and_window_data = get_windows_for_display(display)
-        display_data.append(
-            DisplayWindowData(space_id=space_and_window_data.space_id,
-                              display_id=display,
-                              window_data=space_and_window_data.window_data))
+        display_windows, visible_space_for_display = get_windows_for_display(
+            display)
+        display_details.append(
+            DisplayDetails(space_id=visible_space_for_display,
+                           display_id=display,
+                           window_data=display_windows))
 
-        for item in space_and_window_data.window_data:
+        for item in display_windows:
             if item["has-focus"]:
-                window_id_with_focus = item["id"]
+                currently_focused_window = item["id"]
 
-    for index, item in enumerate(display_data):
-        other_space = display_data[(index + 1) % len(display_data)].space_id
+    for index, item in enumerate(display_details):
+        other_space = display_details[(index + 1) %
+                                      len(display_details)].space_id
         for window in item.window_data:
             logging.debug(
                 f"Moving Window({window['title']}) to space : {other_space}")
             move_window_to_space(WindowDetails.from_yabai_data(window),
                                  space_id=other_space)
 
-    if window_id_with_focus:
-        logging.debug(f"Focusing on window : {window_id_with_focus}")
-        focus_on_window(window_id_with_focus)
+    if currently_focused_window:
+        logging.debug(f"Focusing on window : {currently_focused_window}")
+        focus_on_window(currently_focused_window)
     else:
         logging.debug("Did not find a window that had focus")
 
