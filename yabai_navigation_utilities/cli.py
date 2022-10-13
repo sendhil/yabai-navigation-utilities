@@ -356,6 +356,7 @@ def recent_space():
 @click.argument("displays", type=int, nargs=2)
 def swap_displays(displays):
     display_data: List[DisplayWindowData] = []
+    window_id_with_focus: Optional[int] = None
 
     for display in displays:
         space_and_window_data = get_windows_for_display(display)
@@ -364,6 +365,10 @@ def swap_displays(displays):
                               display_id=display,
                               window_data=space_and_window_data.window_data))
 
+        for item in space_and_window_data.window_data:
+            if item["has-focus"]:
+                window_id_with_focus = item["id"]
+
     for index, item in enumerate(display_data):
         other_space = display_data[(index + 1) % len(display_data)].space_id
         for window in item.window_data:
@@ -371,6 +376,12 @@ def swap_displays(displays):
                 f"Moving Window({window['title']}) to space : {other_space}")
             move_window_to_space(WindowDetails.from_yabai_data(window),
                                  space_id=other_space)
+
+    if window_id_with_focus:
+        logging.debug(f"Focusing on window : {window_id_with_focus}")
+        focus_on_window(window_id_with_focus)
+    else:
+        logging.debug("Did not find a window that had focus")
 
 
 def main():
