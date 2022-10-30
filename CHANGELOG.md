@@ -1,3 +1,7 @@
+# 0.0.11
+
+- Added a `swap-displays` command which will swap the windows between two monitors.
+
 # 0.0.10
 
 - Fixed a bug where `recent-space` didn't work properly if the most recent space had an unmanaged window.
