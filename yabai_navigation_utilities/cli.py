@@ -23,6 +23,12 @@ class DisplayDetails(object):
 
 
 @dataclass
+class SpaceDetails(object):
+    space_id: int
+    window_data: List[Any]
+
+
+@dataclass
 class WindowDetails(object):
     window_id: int
     app: Optional[str]
@@ -376,6 +382,29 @@ def swap_displays(displays):
         focus_on_window(currently_focused_window)
     else:
         logging.debug("Did not find a window that had focus")
+
+@cli.command(help="Swap the windows between two spaces")
+@click.argument("spaces", type=int, nargs=2)
+def swap_spaces(spaces):
+    space_details: List[SpaceDetails] = []
+    current_space = find_current_space()
+
+    for space in spaces:
+        space_windows = get_windows_for_space(space)
+        space_details.append(
+            SpaceDetails(space_id=space,
+                           window_data=space_windows))
+
+    for index, item in enumerate(space_details):
+        other_space = space_details[(index + 1) %
+                                      len(space_details)].space_id
+        for window in item.window_data:
+            logging.debug(
+                f"Moving Window({window['title']}) to space : {other_space}")
+            move_window_to_space(WindowDetails.from_yabai_data(window),
+                                 space_id=other_space)
+
+    focus_on_space(current_space)
 
 
 def main():

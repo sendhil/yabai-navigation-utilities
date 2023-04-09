@@ -1,3 +1,7 @@
+# 0.0.12
+
+- Added a `swap-spaces` command which will swap all the windows between two spaces.
+
 # 0.0.11
 
 - Added a `swap-displays` command which will swap the windows between two monitors.
