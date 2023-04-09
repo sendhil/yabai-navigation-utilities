@@ -384,10 +384,21 @@ def swap_displays(displays):
         logging.debug("Did not find a window that had focus")
 
 @cli.command(help="Swap the windows between two spaces")
-@click.argument("spaces", type=int, nargs=2)
-def swap_spaces(spaces):
+@click.argument("spaces", type=int, nargs=-1)
+def swap_spaces(spaces = []):
     space_details: List[SpaceDetails] = []
     current_space = find_current_space()
+
+    if len(spaces) == 0:
+        logging.error("Must pass between 1 and 2 arguments")
+        return
+
+    if len(spaces) == 1:
+        if current_space == spaces[0]:
+            logging.warn("Target space and current space match, skipping `swap_spaces`")
+            return
+
+        spaces = [current_space, spaces[0]]
 
     for space in spaces:
         space_windows = get_windows_for_space(space)

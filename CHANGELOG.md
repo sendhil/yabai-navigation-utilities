@@ -1,3 +1,11 @@
+# 0.0.14
+
+- Tweaked `swap-spaces` to allow 1 or 2 arguments.
+
+# 0.0.13
+
+- Tweaked `swap-spaces` to only require a single spacet:w.
+
 # 0.0.12
 
 - Added a `swap-spaces` command which will swap all the windows between two spaces.
